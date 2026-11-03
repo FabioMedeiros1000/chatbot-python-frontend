@@ -7,6 +7,10 @@ import "highlight.js/styles/github-dark.css"
 
 import type { ChatMessage } from "../types/chat"
 
+// O react-markdown repassa a prop `node` (AST) aos componentes; ela não deve ir para o DOM
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const withoutNode = <T extends { node?: unknown }>({ node, ...rest }: T) => rest
+
 interface ChatMessagesProps {
     messages: ChatMessage[]
 }
@@ -116,6 +120,35 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
                                 >
                                     {children}
                                 </code>
+                            )
+                        },
+                        table(props) {
+                            return (
+                                <div className="overflow-x-auto my-2">
+                                    <table
+                                        className="min-w-full border-collapse text-left text-xs"
+                                        {...withoutNode(props)}
+                                    />
+                                </div>
+                            )
+                        },
+                        thead(props) {
+                            return <thead className="bg-slate-900" {...withoutNode(props)} />
+                        },
+                        th(props) {
+                            return (
+                                <th
+                                    className="border border-slate-700 px-3 py-2 font-semibold"
+                                    {...withoutNode(props)}
+                                />
+                            )
+                        },
+                        td(props) {
+                            return (
+                                <td
+                                    className="border border-slate-700 px-3 py-2 align-top"
+                                    {...withoutNode(props)}
+                                />
                             )
                         },
                     }}
