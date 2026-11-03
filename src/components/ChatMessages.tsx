@@ -91,9 +91,8 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
                     text-sm
                     leading-relaxed
                     rounded-lg
-                    whitespace-pre-wrap
                     ${isUser
-                        ? "bg-indigo-600 text-white rounded-br-sm"
+                        ? "whitespace-pre-wrap bg-indigo-600 text-white rounded-br-sm"
                         : "bg-slate-800 text-slate-100 rounded-bl-sm"
                     }
                 `}
@@ -121,6 +120,27 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
                                     {children}
                                 </code>
                             )
+                        },
+                        p(props) {
+                            return <p className="my-2 first:mt-0 last:mb-0" {...withoutNode(props)} />
+                        },
+                        h1(props) {
+                            return <h1 className="mt-4 mb-2 text-lg font-bold first:mt-0" {...withoutNode(props)} />
+                        },
+                        h2(props) {
+                            return <h2 className="mt-4 mb-2 text-base font-bold first:mt-0" {...withoutNode(props)} />
+                        },
+                        h3(props) {
+                            return <h3 className="mt-3 mb-1 text-sm font-semibold first:mt-0" {...withoutNode(props)} />
+                        },
+                        ul(props) {
+                            return <ul className="my-2 list-disc pl-5 space-y-1" {...withoutNode(props)} />
+                        },
+                        ol(props) {
+                            return <ol className="my-2 list-decimal pl-5 space-y-1" {...withoutNode(props)} />
+                        },
+                        pre(props) {
+                            return <pre className="my-2 overflow-x-auto" {...withoutNode(props)} />
                         },
                         table(props) {
                             return (
