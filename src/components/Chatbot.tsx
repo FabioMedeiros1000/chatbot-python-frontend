@@ -2,6 +2,16 @@ import { useEffect, useState } from "react"
 import ChatMessages from "./ChatMessages"
 import type { ChatMessage } from "../types/chat"
 import { toastError, toastSuccess } from "./Toast"
+import {
+    errorMessage,
+    getApiKey,
+    getModel,
+    getProvider,
+    migrateLegacySettings,
+    onSettingsChanged,
+} from "../lib/settings"
+
+migrateLegacySettings()
 
 interface Response {
     id: string
@@ -23,6 +33,29 @@ const Chatbot = () => {
     const [oldestMessageId, setOldestMessageId] = useState<number | null>(null)
 
     const [isLoadingDeleting, setIsLoadingDeleting] = useState<boolean>(false)
+
+    // Modo gratuito: mensagens restantes hoje (null = ainda desconhecido)
+    const [isFreeMode, setIsFreeMode] = useState<boolean>(() => getProvider() === "free")
+    const [freeRemaining, setFreeRemaining] = useState<number | null>(null)
+    const [freeLimit, setFreeLimit] = useState<number | null>(null)
+
+    const loadUsage = async () => {
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL
+            const response = await fetch(`${backendUrl}/api/usage`)
+            if (!response.ok) return
+            const data: { limit: number; remaining: number } = await response.json()
+            setFreeLimit(data.limit)
+            setFreeRemaining(data.remaining)
+        } catch {
+            /* o contador é só informativo */
+        }
+    }
+
+    useEffect(() => {
+        loadUsage()
+        return onSettingsChanged(() => setIsFreeMode(getProvider() === "free"))
+    }, [])
 
     useEffect(() => {
         const sessionId = localStorage.getItem("session_id")
@@ -98,24 +131,29 @@ const Chatbot = () => {
     }
 
     const sendMessage = async () => {
-        const apiKey = localStorage.getItem("api_key")
-        if (!apiKey) {
-            toastError("Por favor, insira sua chave de api antes de enviar uma mensagem!")
-            return
-        }
+        const provider = getProvider()
+        const isFree = provider === "free"
+        const apiKey = getApiKey(provider)
+        const model = getModel()
 
-        const modelProvider = localStorage.getItem("model_provider")
-        if (!modelProvider) {
-            toastError("Por favor, selecione um provedor de modelo!")
-            return
+        if (!isFree) {
+            if (!apiKey.trim()) {
+                toastError("Por favor, insira sua chave de api antes de enviar uma mensagem!")
+                return
+            }
+            if (!model) {
+                toastError("Por favor, selecione um modelo!")
+                return
+            }
         }
 
         const backendUrl = import.meta.env.VITE_BACKEND_URL
         const sessionId = localStorage.getItem("session_id")
 
+        // No modo gratuito o backend ignora provedor/modelo e usa a chave dele
         const payload = {
             question: userDraft,
-            model_provider: modelProvider,
+            ...(!isFree && { model_provider: provider, model }),
             ...(sessionId && { session_id: sessionId })
         }
 
@@ -134,15 +172,19 @@ const Chatbot = () => {
             const response = await fetch(`${backendUrl}/api/chatbot`, {
                 method: "POST",
                 headers: {
-                    Authorization: `Bearer ${apiKey}`,
+                    ...(!isFree && { Authorization: `Bearer ${apiKey.trim()}` }),
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(payload)
             })
 
+            const remainingHeader = response.headers.get("X-RateLimit-Remaining")
+            if (remainingHeader !== null) setFreeRemaining(Number(remainingHeader))
+
             if (!response.ok) {
-                const errorData = await response.json()
-                toastError(errorData.detail)
+                const errorData = await response.json().catch(() => null)
+                if (response.status === 429 && isFree) loadUsage()
+                toastError(errorMessage(errorData, "Não foi possível enviar a mensagem."))
                 return
             }
 
@@ -255,7 +297,13 @@ const Chatbot = () => {
                 }}
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center justify-end gap-2">
+                {isFreeMode && freeRemaining !== null && (
+                    <span className="mr-auto text-xs text-slate-400">
+                        Modo gratuito: {freeRemaining}
+                        {freeLimit !== null && ` de ${freeLimit}`} mensagens restantes hoje
+                    </span>
+                )}
                 <button
                     className={`
                         px-4 py-2
