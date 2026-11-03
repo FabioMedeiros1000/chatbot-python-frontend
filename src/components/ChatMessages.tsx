@@ -2,6 +2,7 @@ import { User, Bot, ChevronDown } from "lucide-react"
 import React, { useRef, useState, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import rehypeHighlight from "rehype-highlight"
+import remarkGfm from "remark-gfm"
 import "highlight.js/styles/github-dark.css"
 
 import type { ChatMessage } from "../types/chat"
@@ -94,6 +95,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
                 `}
             >
                 <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeHighlight]}
                     components={{
                         code({ className, children, ...props }) {
